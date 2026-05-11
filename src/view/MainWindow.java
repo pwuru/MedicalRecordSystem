@@ -372,7 +372,7 @@ public class MainWindow extends JFrame {
 
             SwingUtilities.invokeLater(() -> {
                 try {
-                    if (MedicalDB.isConnected()) {
+                    if (recordController.isDatabaseConnected()) {
                         LoginDialog loginDialog = new LoginDialog(null);
                         loginDialog.setLocationRelativeTo(null);
                         loginDialog.setVisible(true);
