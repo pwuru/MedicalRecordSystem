@@ -10,23 +10,30 @@ public class DoctorDialog extends JDialog {
     public DoctorDialog(JFrame parent, String fullName, String specialization) {
         super(parent, fullName.isEmpty() ? "Добавить врача" : "Редактировать врача", true);
         initComponents(fullName, specialization);
-        setSize(400, 200);
+        setSize(500, 350);
         setLocationRelativeTo(parent);
     }
 
     private void initComponents(String fullName, String specialization) {
         setLayout(new BorderLayout(10, 10));
 
-        JPanel fieldsPanel = new JPanel(new GridLayout(2, 2, 10, 15));
+        JPanel fieldsPanel = new JPanel(new GridLayout(3, 2, 10, 15));
         fieldsPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        fieldsPanel.add(new JLabel("ФИО врача:"));
+        fieldsPanel.add(new JLabel("*ФИО врача:"));
         fullNameField = new JTextField(fullName, 20);
         fieldsPanel.add(fullNameField);
 
-        fieldsPanel.add(new JLabel("Специализация:"));
+        fieldsPanel.add(new JLabel("*Специализация:"));
         specializationField = new JTextField(specialization, 20);
         fieldsPanel.add(specializationField);
+
+        JLabel hintLabel = new JLabel("* Поля, обязательные для заполнения");
+        hintLabel.setFont(new Font("Arial", Font.ITALIC, 10));
+        hintLabel.setForeground(Color.GRAY);
+        fieldsPanel.add(hintLabel);
+        fieldsPanel.add(new JLabel());
+
 
         add(fieldsPanel, BorderLayout.CENTER);
 

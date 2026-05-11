@@ -11,7 +11,7 @@ public class PatientDialog extends JDialog {
                          String phone, String address, String snils) {
         super(parent, fullName.isEmpty() ? "Добавить пациента" : "Редактировать пациента", true);
         initComponents(fullName, birthDate, phone, address, snils);
-        setSize(450, 350);
+        setSize(500, 450);
         setLocationRelativeTo(parent);
     }
 
@@ -19,28 +19,34 @@ public class PatientDialog extends JDialog {
                                 String phone, String address, String snils) {
         setLayout(new BorderLayout(10, 10));
 
-        JPanel fieldsPanel = new JPanel(new GridLayout(5, 2, 10, 10));
+        JPanel fieldsPanel = new JPanel(new GridLayout(6, 2, 10, 10));
         fieldsPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        fieldsPanel.add(new JLabel("ФИО:"));
+        fieldsPanel.add(new JLabel("*ФИО:"));
         fullNameField = new JTextField(fullName);
         fieldsPanel.add(fullNameField);
 
-        fieldsPanel.add(new JLabel("Дата рождения (ГГГГ-ММ-ДД):"));
+        fieldsPanel.add(new JLabel("*Дата рождения (ГГГГ-ММ-ДД):"));
         birthDateField = new JTextField(birthDate);
         fieldsPanel.add(birthDateField);
 
-        fieldsPanel.add(new JLabel("Телефон:"));
+        fieldsPanel.add(new JLabel("*Телефон:"));
         phoneField = new JTextField(phone);
         fieldsPanel.add(phoneField);
 
-        fieldsPanel.add(new JLabel("Адрес:"));
+        fieldsPanel.add(new JLabel("*Адрес:"));
         addressField = new JTextField(address);
         fieldsPanel.add(addressField);
 
-        fieldsPanel.add(new JLabel("СНИЛС (XXX-XXX-XXX XX):"));
+        fieldsPanel.add(new JLabel("*СНИЛС (XXX-XXX-XXX XX):"));
         snilsField = new JTextField(snils);
         fieldsPanel.add(snilsField);
+
+        JLabel hintLabel = new JLabel("* Поля, обязательные для заполнения");
+        hintLabel.setFont(new Font("Arial", Font.ITALIC, 10));
+        hintLabel.setForeground(Color.GRAY);
+        fieldsPanel.add(hintLabel);
+        fieldsPanel.add(new JLabel());
 
         add(fieldsPanel, BorderLayout.CENTER);
 
