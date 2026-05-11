@@ -6,6 +6,8 @@ import java.util.List;
 import model.*;
 import controller.*;
 import java.sql.*;
+import java.awt.Desktop;
+import java.io.File;
 
 public class MainWindow extends JFrame {
     private JTable patientsTable, recordsTable, doctorsTable;
@@ -16,6 +18,7 @@ public class MainWindow extends JFrame {
     private JLabel statusLabel;
     private JComboBox<String> patientComboBox;
     private int currentPatientId = -1;
+    private int currentRecordType = 0; // 0 - протоколы, 1 - исследования
 
     public MainWindow() {
         setTitle("Медицинская информационная система");
@@ -78,6 +81,7 @@ public class MainWindow extends JFrame {
     private JPanel createRecordsPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel northContainer = new JPanel(new GridLayout(2, 1));
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.add(new JLabel("Выберите пациента:"));
@@ -93,7 +97,7 @@ public class MainWindow extends JFrame {
                         int id = Integer.parseInt(parts[0]);
                         currentPatientId = id;
                         if (recordController != null) {
-                            recordController.loadRecordsForPatient(currentPatientId);
+                            recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
                         }
                         updateStatus("Выбран пациент: " + parts[1]);
                     } catch (NumberFormatException ex) {
@@ -104,34 +108,62 @@ public class MainWindow extends JFrame {
             }
         });
         topPanel.add(patientComboBox);
-        panel.add(topPanel, BorderLayout.NORTH);
+        northContainer.add(topPanel);
+
+        JPanel togglePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JRadioButton protocolsRadio = new JRadioButton("Протоколы осмотров", true);
+        JRadioButton studiesRadio = new JRadioButton("Результаты исследований", false);
+        ButtonGroup group = new ButtonGroup();
+        group.add(protocolsRadio);
+        group.add(studiesRadio);
+        togglePanel.add(protocolsRadio);
+        togglePanel.add(studiesRadio);
+        northContainer.add(togglePanel);
+
+        panel.add(northContainer, BorderLayout.NORTH);
 
         recordsModel = new DefaultTableModel(
-                new String[]{"ID", "Дата", "Врач", "Диагноз", "Жалобы", "Лечение", "След. прием"}, 0);
+                new String[]{"ID", "Дата", "Врач", "Диагноз/Исследование", "Дополнительно"}, 0);
         recordsTable = new JTable(recordsModel);
         JScrollPane scrollPane = new JScrollPane(recordsTable);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("История болезни"));
+        scrollPane.setBorder(BorderFactory.createTitledBorder("Записи"));
         panel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton addBtn = new JButton("Добавить запись");
+        JButton addBtn = new JButton("Добавить");
         JButton editBtn = new JButton("Редактировать");
         JButton deleteBtn = new JButton("Удалить");
-        JButton detailsBtn = new JButton("Детали");
+        JButton logBtn = new JButton("Лог");
+
+        protocolsRadio.addActionListener(e -> {
+            currentRecordType = 0;
+            setupTableForProtocols();
+            if (currentPatientId != -1 && recordController != null) {
+                recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
+            }
+        });
+
+        studiesRadio.addActionListener(e -> {
+            currentRecordType = 1;
+            setupTableForStudies();
+            if (currentPatientId != -1 && recordController != null) {
+                recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
+            }
+        });
 
         addBtn.addActionListener(e -> {
-            if (currentPatientId != -1) {
-                recordController.addRecord(currentPatientId);
+            if (currentPatientId != -1 && recordController != null) {
+                recordController.addRecord(currentPatientId, currentRecordType);
             } else {
                 showError("Сначала выберите пациента");
             }
         });
 
         editBtn.addActionListener(e -> {
-            if (currentPatientId != -1) {
+            if (currentPatientId != -1 && recordController != null) {
                 int selectedRow = recordsTable.getSelectedRow();
                 if (selectedRow != -1) {
-                    recordController.editRecord(currentPatientId);
+                    recordController.editRecord(currentPatientId, currentRecordType);
                 } else {
                     showError("Сначала выберите запись");
                 }
@@ -147,8 +179,8 @@ public class MainWindow extends JFrame {
                     int confirm = JOptionPane.showConfirmDialog(this,
                             "Удалить выбранную запись?", "Подтверждение удаления",
                             JOptionPane.YES_NO_OPTION);
-                    if (confirm == JOptionPane.YES_OPTION) {
-                        recordController.deleteRecord(currentPatientId);
+                    if (confirm == JOptionPane.YES_OPTION && recordController != null) {
+                        recordController.deleteRecord(currentPatientId, currentRecordType);
                     }
                 } else {
                     showError("Сначала выберите запись");
@@ -158,21 +190,22 @@ public class MainWindow extends JFrame {
             }
         });
 
-        detailsBtn.addActionListener(e -> {
+        logBtn.addActionListener(e -> {
             if (currentPatientId != -1) {
-                int selectedRow = recordsTable.getSelectedRow();
-                if (selectedRow != -1) {
-                    int recordId = (int) recordsTable.getValueAt(selectedRow, 0);
-                    try {
-                        MedicalRecord record = MedicalDB.getRecordById(recordId);
-                        if (record != null) {
-                            showRecordDetails(record);
-                        }
-                    } catch (SQLException ex) {
-                        showError("Ошибка загрузки: " + ex.getMessage());
+                try {
+                    String patientName = MedicalDB.getPatientName(currentPatientId);
+                    String safeName = patientName.replaceAll("[^a-zA-Zа-яА-Я0-9]", "_");
+                    String logFileName = "logs/patient_" + currentPatientId + "_" + safeName + ".txt";
+                    File logFile = new File(logFileName);
+
+                    if (logFile.exists()) {
+                        Desktop.getDesktop().open(logFile);
+                        updateStatus("Открыт лог пациента: " + patientName);
+                    } else {
+                        showError("Файл лога не найден. Возможно, ещё нет записей для этого пациента.");
                     }
-                } else {
-                    showError("Сначала выберите запись");
+                } catch (Exception ex) {
+                    showError("Ошибка открытия лога: " + ex.getMessage());
                 }
             } else {
                 showError("Сначала выберите пациента");
@@ -182,11 +215,22 @@ public class MainWindow extends JFrame {
         buttonPanel.add(addBtn);
         buttonPanel.add(editBtn);
         buttonPanel.add(deleteBtn);
-        buttonPanel.add(detailsBtn);
-
+        buttonPanel.add(logBtn);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
+        setupTableForProtocols();
+
         return panel;
+    }
+
+    private void setupTableForProtocols() {
+        recordsModel.setColumnCount(0);
+        recordsModel.setColumnIdentifiers(new String[]{"ID", "Дата", "Врач", "Жалобы", "Диагноз"});
+    }
+
+    private void setupTableForStudies() {
+        recordsModel.setColumnCount(0);
+        recordsModel.setColumnIdentifiers(new String[]{"ID", "Дата", "Врач", "Вид исследования", "Результат"});
     }
 
     private JPanel createDoctorsPanel() {
@@ -260,7 +304,7 @@ public class MainWindow extends JFrame {
                             patientComboBox.setSelectedIndex(i);
                             currentPatientId = selectedId;
                             if (recordController != null) {
-                                recordController.loadRecordsForPatient(currentPatientId);
+                                recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
                             }
                             updateStatus("Выбран пациент: " + item.split(" - ")[1]);
                             return;
@@ -272,7 +316,7 @@ public class MainWindow extends JFrame {
                 int firstId = Integer.parseInt(first.split(" - ")[0]);
                 currentPatientId = firstId;
                 if (recordController != null) {
-                    recordController.loadRecordsForPatient(currentPatientId);
+                    recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
                 }
                 updateStatus("Выбран пациент: " + first.split(" - ")[1]);
             }
@@ -281,42 +325,19 @@ public class MainWindow extends JFrame {
         }
     }
 
-    private void showRecordDetails(MedicalRecord record) {
-        try {
-            String doctorName = MedicalDB.getDoctorName(record.doctorId);
-
-            JTextArea textArea = new JTextArea();
-            textArea.setEditable(false);
-            textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-
-            StringBuilder sb = new StringBuilder();
-            sb.append("ДЕТАЛИ ЗАПИСИ:\n\n");
-            sb.append("Дата приема: ").append(record.recordDate).append("\n");
-            sb.append("Врач: ").append(doctorName).append("\n\n");
-            sb.append("ЖАЛОБЫ:\n");
-            sb.append(record.complaints != null && !record.complaints.isEmpty() ?
-                    record.complaints : "не указаны").append("\n\n");
-            sb.append("ДИАГНОЗ:\n");
-            sb.append(record.diagnosis).append("\n\n");
-            sb.append("ЛЕЧЕНИЕ:\n");
-            sb.append(record.treatment != null && !record.treatment.isEmpty() ?
-                    record.treatment : "не указано").append("\n\n");
-            sb.append("СЛЕДУЮЩИЙ ПРИЕМ:\n");
-            sb.append(record.nextAppointment != null && !record.nextAppointment.isEmpty() ?
-                    record.nextAppointment : "не назначен").append("\n");
-
-            textArea.setText(sb.toString());
-
-            JScrollPane scrollPane = new JScrollPane(textArea);
-            scrollPane.setPreferredSize(new Dimension(500, 400));
-
-            JOptionPane.showMessageDialog(this, scrollPane,
-                    "Детали записи от " + record.recordDate,
-                    JOptionPane.INFORMATION_MESSAGE);
-
-        } catch (SQLException e) {
-            showError("Ошибка: " + e.getMessage());
+    public void refreshCurrentRecords() {
+        if (recordController != null && currentPatientId != -1) {
+            recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
         }
+    }
+
+    public void showDetailsDialog(String details, String title) {
+        JTextArea textArea = new JTextArea(details);
+        textArea.setEditable(false);
+        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(500, 400));
+        JOptionPane.showMessageDialog(this, scrollPane, title, JOptionPane.INFORMATION_MESSAGE);
     }
 
     public JTable getPatientsTable() { return patientsTable; }
