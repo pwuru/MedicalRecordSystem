@@ -7,6 +7,7 @@ import model.Patient;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PatientController {
@@ -19,7 +20,20 @@ public class PatientController {
 
     public void loadPatients() {
         try {
-            List<Patient> patients = MedicalDB.getPatients();
+            List<Patient> patients;
+            if (view.getCurrentUser().getRole().equals("PATIENT")) {
+                Integer patientId = view.getCurrentUser().getPatientId();
+                patients = new ArrayList<>();
+                if (patientId != null) {
+                    Patient p = MedicalDB.getPatientById(patientId);
+                    if (p != null) {
+                        patients.add(p);
+                    }
+                }
+            } else {
+                patients = MedicalDB.getPatients();
+            }
+
             DefaultTableModel model = view.getPatientsModel();
             model.setRowCount(0);
             for (Patient p : patients) {
@@ -31,7 +45,70 @@ public class PatientController {
         } catch (SQLException e) {
             view.showError("Ошибка загрузки пациентов: " + e.getMessage());
         }
-        view.refreshPatientComboBox();
+        refreshPatientComboBox();
+    }
+
+    public void refreshPatientComboBox() {
+        try {
+            List<Patient> patients;
+            int selectedId = view.getCurrentPatientId();
+
+            if (view.getCurrentUser().getRole().equals("PATIENT")) {
+                Integer patientId = view.getCurrentUser().getPatientId();
+                if (patientId != null) {
+                    patients = new ArrayList<>();
+                    Patient p = MedicalDB.getPatientById(patientId);
+                    if (p != null) {
+                        patients.add(p);
+                    }
+                    selectedId = patientId;
+                } else {
+                    patients = MedicalDB.getPatients();
+                }
+            } else {
+                patients = MedicalDB.getPatients();
+            }
+
+            view.updatePatientComboBox(patients, selectedId);
+
+            if (patients.isEmpty()) {
+                view.clearRecordsTable();
+                view.updateStatus("Нет зарегистрированных пациентов");
+            } else {
+                MedicalRecordController recordController = view.getRecordController();
+
+                if (selectedId == -1 && !patients.isEmpty()) {
+                    selectedId = patients.get(0).id;
+                    view.setCurrentPatientId(selectedId);
+
+                    for (int i = 0; i < view.getPatientsComboBox().getItemCount(); i++) {
+                        String item = view.getPatientsComboBox().getItemAt(i);
+                        if (item.startsWith(selectedId + " -")) {
+                            view.getPatientsComboBox().setSelectedIndex(i);
+                            break;
+                        }
+                    }
+                }
+
+                if (recordController != null && selectedId != -1) {
+                    recordController.loadRecordsForPatient(selectedId, view.getCurrentRecordType());
+                }
+
+                String patientName = MedicalDB.getPatientName(selectedId);
+                view.updateStatus("Выбран пациент: " + patientName);
+            }
+        } catch (SQLException e) {
+            view.showError("Ошибка загрузки пациентов: " + e.getMessage());
+        }
+    }
+
+    public String getPatientName(int patientId) {
+        try {
+            return MedicalDB.getPatientName(patientId);
+        } catch (SQLException e) {
+            view.showError("Ошибка получения имени пациента: " + e.getMessage());
+            return "Неизвестный пациент";
+        }
     }
 
     public void addPatient() {

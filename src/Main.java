@@ -1,5 +1,7 @@
 import view.MainWindow;
+import view.LoginDialog;
 import model.MedicalDB;
+import model.User;
 import javax.swing.*;
 import java.sql.SQLException;
 import java.awt.event.WindowAdapter;
@@ -12,7 +14,19 @@ public class Main {
                 MedicalDB.connect();
                 System.out.println("База данных успешно подключена");
 
-                MainWindow window = new MainWindow();
+                LoginDialog loginDialog = new LoginDialog(null);
+                loginDialog.setLocationRelativeTo(null);
+                loginDialog.setVisible(true);
+
+                if (!loginDialog.isAuthenticated()) {
+                    System.out.println("Авторизация отменена");
+                    System.exit(0);
+                }
+
+                User currentUser = loginDialog.getCurrentUser();
+                System.out.println("Авторизован: " + currentUser.getUsername() + " (" + currentUser.getRole() + ")");
+
+                MainWindow window = new MainWindow(currentUser);
 
                 window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
                 window.addWindowListener(new WindowAdapter() {

@@ -2,6 +2,7 @@ package view;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.IOException;
 import java.util.List;
 import model.*;
 import controller.*;
@@ -18,10 +19,14 @@ public class MainWindow extends JFrame {
     private JLabel statusLabel;
     private JComboBox<String> patientComboBox;
     private int currentPatientId = -1;
-    private int currentRecordType = 0; // 0 - протоколы, 1 - исследования
+    private int currentRecordType = 0;
+    private User currentUser;
+    private JButton addPatientBtn, editPatientBtn, deletePatientBtn;
+    private JButton addDoctorBtn, editDoctorBtn, deleteDoctorBtn;
 
-    public MainWindow() {
-        setTitle("Медицинская информационная система");
+    public MainWindow(User user) {
+        this.currentUser = user;
+        setTitle("Медицинская информационная система - " + user.getUsername() + " (" + user.getRole() + ")");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setSize(1200, 700);
@@ -34,7 +39,7 @@ public class MainWindow extends JFrame {
 
         tabbedPane.addChangeListener(e -> {
             if (tabbedPane.getSelectedIndex() == 1) {
-                refreshPatientComboBox();
+                patientController.refreshPatientComboBox();
             }
         });
 
@@ -45,7 +50,47 @@ public class MainWindow extends JFrame {
         recordController = new MedicalRecordController(this);
         doctorController = new DoctorController(this);
 
+        if (currentPatientId != -1 && recordController != null) {
+            recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
+        }
+
+        setupAccessByRole();
+
         setVisible(true);
+    }
+
+    private void setupAccessByRole() {
+        String role = currentUser.getRole();
+
+        switch (role) {
+            case "ADMIN":
+                updateStatus("Выполнен вход под ролью Администратор");
+                break;
+            case "DOCTOR":
+                disableDoctorManagement();
+                updateStatus("Выполнен вход под ролью Врач");
+                break;
+            case "PATIENT":
+                disablePatientAccess();
+                updateStatus("Выполнен вход под ролью Пациент");
+                break;
+        }
+    }
+
+    private void disableDoctorManagement() {
+        if (addDoctorBtn != null) addDoctorBtn.setEnabled(false);
+        if (editDoctorBtn != null) editDoctorBtn.setEnabled(false);
+        if (deleteDoctorBtn != null) deleteDoctorBtn.setEnabled(false);
+        if (deletePatientBtn != null) deletePatientBtn.setEnabled(false);
+    }
+
+    private void disablePatientAccess() {
+        JTabbedPane tabbedPane = (JTabbedPane) getContentPane().getComponent(0);
+        tabbedPane.setEnabledAt(2, false);
+
+        if (addPatientBtn != null) addPatientBtn.setEnabled(false);
+        if (editPatientBtn != null) editPatientBtn.setEnabled(false);
+        if (deletePatientBtn != null) deletePatientBtn.setEnabled(false);
     }
 
     private JPanel createPatientsPanel() {
@@ -62,17 +107,17 @@ public class MainWindow extends JFrame {
         panel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton addBtn = new JButton("Добавить");
-        JButton editBtn = new JButton("Изменить");
-        JButton deleteBtn = new JButton("Удалить");
+        addPatientBtn = new JButton("Добавить");
+        editPatientBtn = new JButton("Изменить");
+        deletePatientBtn = new JButton("Удалить");
 
-        addBtn.addActionListener(e -> patientController.addPatient());
-        editBtn.addActionListener(e -> patientController.editPatient());
-        deleteBtn.addActionListener(e -> patientController.deletePatient());
+        addPatientBtn.addActionListener(e -> patientController.addPatient());
+        editPatientBtn.addActionListener(e -> patientController.editPatient());
+        deletePatientBtn.addActionListener(e -> patientController.deletePatient());
 
-        buttonPanel.add(addBtn);
-        buttonPanel.add(editBtn);
-        buttonPanel.add(deleteBtn);
+        buttonPanel.add(addPatientBtn);
+        buttonPanel.add(editPatientBtn);
+        buttonPanel.add(deletePatientBtn);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
@@ -81,32 +126,14 @@ public class MainWindow extends JFrame {
     private JPanel createRecordsPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
         JPanel northContainer = new JPanel(new GridLayout(2, 1));
 
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         topPanel.add(new JLabel("Выберите пациента:"));
         patientComboBox = new JComboBox<>();
         patientComboBox.setPreferredSize(new Dimension(300, 25));
-        patientComboBox.addActionListener(e -> {
-            int selectedIndex = patientComboBox.getSelectedIndex();
-            if (selectedIndex >= 0 && patientComboBox.getItemCount() > 0) {
-                String selected = (String) patientComboBox.getSelectedItem();
-                String[] parts = selected.split(" - ");
-                if (parts.length >= 2) {
-                    try {
-                        int id = Integer.parseInt(parts[0]);
-                        currentPatientId = id;
-                        if (recordController != null) {
-                            recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
-                        }
-                        updateStatus("Выбран пациент: " + parts[1]);
-                    } catch (NumberFormatException ex) {
-                        currentPatientId = -1;
-                        recordsModel.setRowCount(0);
-                    }
-                }
-            }
-        });
+        patientComboBox.addActionListener(e -> syncPatientSelection());
         topPanel.add(patientComboBox);
         northContainer.add(topPanel);
 
@@ -122,8 +149,7 @@ public class MainWindow extends JFrame {
 
         panel.add(northContainer, BorderLayout.NORTH);
 
-        recordsModel = new DefaultTableModel(
-                new String[]{"ID", "Дата", "Врач", "Диагноз/Исследование", "Дополнительно"}, 0);
+        recordsModel = new DefaultTableModel();
         recordsTable = new JTable(recordsModel);
         JScrollPane scrollPane = new JScrollPane(recordsTable);
         scrollPane.setBorder(BorderFactory.createTitledBorder("Записи"));
@@ -137,7 +163,9 @@ public class MainWindow extends JFrame {
 
         protocolsRadio.addActionListener(e -> {
             currentRecordType = 0;
-            setupTableForProtocols();
+            if (recordController != null) {
+                recordController.setupTableForProtocols(recordsModel);
+            }
             if (currentPatientId != -1 && recordController != null) {
                 recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
             }
@@ -145,7 +173,9 @@ public class MainWindow extends JFrame {
 
         studiesRadio.addActionListener(e -> {
             currentRecordType = 1;
-            setupTableForStudies();
+            if (recordController != null) {
+                recordController.setupTableForStudies(recordsModel);
+            }
             if (currentPatientId != -1 && recordController != null) {
                 recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
             }
@@ -192,25 +222,43 @@ public class MainWindow extends JFrame {
 
         logBtn.addActionListener(e -> {
             if (currentPatientId != -1) {
-                try {
-                    String patientName = MedicalDB.getPatientName(currentPatientId);
-                    String safeName = patientName.replaceAll("[^a-zA-Zа-яА-Я0-9]", "_");
-                    String logFileName = "logs/patient_" + currentPatientId + "_" + safeName + ".txt";
-                    File logFile = new File(logFileName);
+                String patientName = patientController.getPatientName(currentPatientId);
+                String safeName = patientName.replaceAll("[^a-zA-Zа-яА-Я0-9]", "_");
+                String logFileName = "logs/patient_" + currentPatientId + "_" + safeName + ".txt";
+                File logFile = new File(logFileName);
 
-                    if (logFile.exists()) {
+                if (logFile.exists()) {
+                    try {
                         Desktop.getDesktop().open(logFile);
                         updateStatus("Открыт лог пациента: " + patientName);
-                    } else {
-                        showError("Файл лога не найден. Возможно, ещё нет записей для этого пациента.");
+                    } catch (IOException ex) {
+                        showError("Ошибка открытия лога: " + ex.getMessage());
                     }
-                } catch (Exception ex) {
-                    showError("Ошибка открытия лога: " + ex.getMessage());
+                } else {
+                    showError("Файл лога не найден.");
                 }
             } else {
                 showError("Сначала выберите пациента");
             }
         });
+
+        if (currentUser.getRole().equals("PATIENT")) {
+            addBtn.setEnabled(false);
+            editBtn.setEnabled(false);
+            deleteBtn.setEnabled(false);
+            patientComboBox.setEnabled(false);
+
+            if (currentUser.getPatientId() != null) {
+                int patientIdFromUser = currentUser.getPatientId();
+                for (int i = 0; i < patientComboBox.getItemCount(); i++) {
+                    String item = patientComboBox.getItemAt(i);
+                    if (item.startsWith(patientIdFromUser + " -")) {
+                        patientComboBox.setSelectedIndex(i);
+                        break;
+                    }
+                }
+            }
+        }
 
         buttonPanel.add(addBtn);
         buttonPanel.add(editBtn);
@@ -218,19 +266,11 @@ public class MainWindow extends JFrame {
         buttonPanel.add(logBtn);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
-        setupTableForProtocols();
+        SwingUtilities.invokeLater(() -> {
+            protocolsRadio.doClick();
+        });
 
         return panel;
-    }
-
-    private void setupTableForProtocols() {
-        recordsModel.setColumnCount(0);
-        recordsModel.setColumnIdentifiers(new String[]{"ID", "Дата", "Врач", "Жалобы", "Диагноз"});
-    }
-
-    private void setupTableForStudies() {
-        recordsModel.setColumnCount(0);
-        recordsModel.setColumnIdentifiers(new String[]{"ID", "Дата", "Врач", "Вид исследования", "Результат"});
     }
 
     private JPanel createDoctorsPanel() {
@@ -245,99 +285,140 @@ public class MainWindow extends JFrame {
         panel.add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton addBtn = new JButton("Добавить");
-        JButton editBtn = new JButton("Изменить");
-        JButton deleteBtn = new JButton("Удалить");
+        addDoctorBtn = new JButton("Добавить");
+        editDoctorBtn = new JButton("Изменить");
+        deleteDoctorBtn = new JButton("Удалить");
 
-        addBtn.addActionListener(e -> doctorController.addDoctor());
-        editBtn.addActionListener(e -> doctorController.editDoctor());
-        deleteBtn.addActionListener(e -> doctorController.deleteDoctor());
+        addDoctorBtn.addActionListener(e -> doctorController.addDoctor());
+        editDoctorBtn.addActionListener(e -> doctorController.editDoctor());
+        deleteDoctorBtn.addActionListener(e -> doctorController.deleteDoctor());
 
-        buttonPanel.add(addBtn);
-        buttonPanel.add(editBtn);
-        buttonPanel.add(deleteBtn);
+        buttonPanel.add(addDoctorBtn);
+        buttonPanel.add(editDoctorBtn);
+        buttonPanel.add(deleteDoctorBtn);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;
     }
 
     private JPanel createStatusPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel panel = new JPanel(new BorderLayout());
         statusLabel = new JLabel("Готов к работе");
-        panel.add(statusLabel);
+        panel.add(statusLabel, BorderLayout.WEST);
+
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton logoutBtn = new JButton("Выход");
+        logoutBtn.addActionListener(e -> logout());
+        rightPanel.add(logoutBtn);
+        panel.add(rightPanel, BorderLayout.EAST);
+
         return panel;
     }
 
-    public void refreshPatientComboBox() {
-        try {
-            List<Patient> patients = MedicalDB.getPatients();
+    public void updatePatientComboBox(List<Patient> patients, int selectedPatientId) {
+        patientComboBox.removeAllItems();
+        if (patients.isEmpty()) {
+            patientComboBox.setEnabled(false);
+            patientComboBox.addItem("-- Нет пациентов --");
+        } else {
+            patientComboBox.setEnabled(true);
+            for (Patient p : patients) {
+                patientComboBox.addItem(p.id + " - " + p.fullName);
+            }
 
-            int selectedId = -1;
-            if (patientComboBox.getSelectedIndex() >= 0 && patientComboBox.getItemCount() > 0) {
-                String selected = (String) patientComboBox.getSelectedItem();
-                if (selected != null && !selected.isEmpty()) {
-                    try {
-                        selectedId = Integer.parseInt(selected.split(" - ")[0]);
-                    } catch (NumberFormatException | ArrayIndexOutOfBoundsException ex) {
-                        selectedId = -1;
+            if (selectedPatientId != -1) {
+                for (int i = 0; i < patientComboBox.getItemCount(); i++) {
+                    String item = patientComboBox.getItemAt(i);
+                    if (item.startsWith(selectedPatientId + " -")) {
+                        patientComboBox.setSelectedIndex(i);
+                        break;
                     }
                 }
             }
+        }
+    }
 
-            patientComboBox.removeAllItems();
-
-            if (patients.isEmpty()) {
-                patientComboBox.setEnabled(false);
-                currentPatientId = -1;
-                recordsModel.setRowCount(0);
-                updateStatus("Нет зарегистрированных пациентов");
-            } else {
-                patientComboBox.setEnabled(true);
-                for (Patient p : patients) {
-                    patientComboBox.addItem(p.id + " - " + p.fullName);
-                }
-
-                if (selectedId != -1) {
-                    for (int i = 0; i < patientComboBox.getItemCount(); i++) {
-                        String item = patientComboBox.getItemAt(i);
-                        if (item.startsWith(selectedId + " -")) {
-                            patientComboBox.setSelectedIndex(i);
-                            currentPatientId = selectedId;
+    public void syncPatientSelection() {
+        int selectedIndex = patientComboBox.getSelectedIndex();
+        if (selectedIndex >= 0 && patientComboBox.getItemCount() > 0) {
+            String selected = (String) patientComboBox.getSelectedItem();
+            if (selected != null && !selected.equals("-- Нет пациентов --")) {
+                String[] parts = selected.split(" - ");
+                if (parts.length >= 2) {
+                    try {
+                        int id = Integer.parseInt(parts[0]);
+                        if (currentPatientId != id) {
+                            currentPatientId = id;
                             if (recordController != null) {
                                 recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
                             }
-                            updateStatus("Выбран пациент: " + item.split(" - ")[1]);
-                            return;
+                            updateStatus("Выбран пациент: " + parts[1]);
+                        }
+                    } catch (NumberFormatException ex) {}
+                }
+            }
+        }
+    }
+
+    private void logout() {
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Вы уверены, что хотите выйти из системы?",
+                "Подтверждение выхода",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            dispose();
+
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    if (MedicalDB.isConnected()) {
+                        LoginDialog loginDialog = new LoginDialog(null);
+                        loginDialog.setLocationRelativeTo(null);
+                        loginDialog.setVisible(true);
+
+                        if (loginDialog.isAuthenticated()) {
+                            User newUser = loginDialog.getCurrentUser();
+                            MainWindow newWindow = new MainWindow(newUser);
+                            newWindow.setVisible(true);
+                        } else {
+                            System.exit(0);
                         }
                     }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.exit(0);
                 }
-                patientComboBox.setSelectedIndex(0);
-                String first = (String) patientComboBox.getSelectedItem();
-                int firstId = Integer.parseInt(first.split(" - ")[0]);
-                currentPatientId = firstId;
-                if (recordController != null) {
-                    recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
-                }
-                updateStatus("Выбран пациент: " + first.split(" - ")[1]);
-            }
-        } catch (SQLException e) {
-            showError("Ошибка загрузки пациентов: " + e.getMessage());
+            });
         }
     }
 
-    public void refreshCurrentRecords() {
-        if (recordController != null && currentPatientId != -1) {
-            recordController.loadRecordsForPatient(currentPatientId, currentRecordType);
-        }
+    public User getCurrentUser() {
+        return currentUser;
     }
 
-    public void showDetailsDialog(String details, String title) {
-        JTextArea textArea = new JTextArea(details);
-        textArea.setEditable(false);
-        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        scrollPane.setPreferredSize(new Dimension(500, 400));
-        JOptionPane.showMessageDialog(this, scrollPane, title, JOptionPane.INFORMATION_MESSAGE);
+    public MedicalRecordController getRecordController() {
+        return recordController;
+    }
+
+    public int getCurrentRecordType() {
+        return currentRecordType;
+    }
+
+    public void setCurrentPatientId(int id) {
+        this.currentPatientId = id;
+    }
+
+    public int getCurrentPatientId() {
+        return currentPatientId;
+    }
+
+    public void clearRecordsTable() {
+        recordsModel.setRowCount(0);
+    }
+
+    public JComboBox<String> getPatientsComboBox() {
+        return patientComboBox;
     }
 
     public JTable getPatientsTable() { return patientsTable; }
