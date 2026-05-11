@@ -115,11 +115,44 @@ public class MainWindow extends JFrame {
 
         JPanel buttonPanel = new JPanel(new FlowLayout());
         JButton addBtn = new JButton("Добавить запись");
+        JButton editBtn = new JButton("Редактировать");
+        JButton deleteBtn = new JButton("Удалить");
         JButton detailsBtn = new JButton("Детали");
 
         addBtn.addActionListener(e -> {
             if (currentPatientId != -1) {
                 recordController.addRecord(currentPatientId);
+            } else {
+                showError("Сначала выберите пациента");
+            }
+        });
+
+        editBtn.addActionListener(e -> {
+            if (currentPatientId != -1) {
+                int selectedRow = recordsTable.getSelectedRow();
+                if (selectedRow != -1) {
+                    recordController.editRecord(currentPatientId);
+                } else {
+                    showError("Сначала выберите запись");
+                }
+            } else {
+                showError("Сначала выберите пациента");
+            }
+        });
+
+        deleteBtn.addActionListener(e -> {
+            if (currentPatientId != -1) {
+                int selectedRow = recordsTable.getSelectedRow();
+                if (selectedRow != -1) {
+                    int confirm = JOptionPane.showConfirmDialog(this,
+                            "Удалить выбранную запись?", "Подтверждение удаления",
+                            JOptionPane.YES_NO_OPTION);
+                    if (confirm == JOptionPane.YES_OPTION) {
+                        recordController.deleteRecord(currentPatientId);
+                    }
+                } else {
+                    showError("Сначала выберите запись");
+                }
             } else {
                 showError("Сначала выберите пациента");
             }
@@ -147,7 +180,10 @@ public class MainWindow extends JFrame {
         });
 
         buttonPanel.add(addBtn);
+        buttonPanel.add(editBtn);
+        buttonPanel.add(deleteBtn);
         buttonPanel.add(detailsBtn);
+
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
         return panel;

@@ -163,30 +163,24 @@ public class MedicalRecordController {
         int recordId = (int) view.getRecordsTable().getValueAt(row, 0);
         String diagnosis = (String) view.getRecordsTable().getValueAt(row, 3);
 
-        int confirm = javax.swing.JOptionPane.showConfirmDialog(view,
-                "Удалить запись о диагнозе \"" + diagnosis + "\"?",
-                "Подтверждение удаления", javax.swing.JOptionPane.YES_NO_OPTION);
+        try {
+            MedicalRecord record = MedicalDB.getRecordById(recordId);
+            String patientName = MedicalDB.getPatientName(patientId);
+            String doctorName = MedicalDB.getDoctorName(record.doctorId);
 
-        if (confirm == javax.swing.JOptionPane.YES_OPTION) {
-            try {
-                MedicalRecord record = MedicalDB.getRecordById(recordId);
-                String patientName = MedicalDB.getPatientName(patientId);
-                String doctorName = MedicalDB.getDoctorName(record.doctorId);
+            MedicalDB.deleteMedicalRecord(recordId);
+            loadRecordsForPatient(patientId);
 
-                MedicalDB.deleteMedicalRecord(recordId);
-                loadRecordsForPatient(patientId);
+            String details = String.format(
+                    "Удалена запись:\n  Врач: %s\n  Дата: %s\n  Диагноз: %s\n  Жалобы: %s\n  Лечение: %s\n  След. прием: %s",
+                    doctorName, record.recordDate, record.diagnosis, record.complaints, record.treatment,
+                    (record.nextAppointment == null || record.nextAppointment.isEmpty() ? "не назначен" : record.nextAppointment)
+            );
+            LoggerUtil.log(patientId, patientName, "УДАЛЕНИЕ ЗАПИСИ", details);
 
-                String details = String.format(
-                        "Удалена запись:\n  Врач: %s\n  Дата: %s\n  Диагноз: %s\n  Жалобы: %s\n  Лечение: %s\n  След. прием: %s",
-                        doctorName, record.recordDate, record.diagnosis, record.complaints, record.treatment,
-                        (record.nextAppointment == null || record.nextAppointment.isEmpty() ? "не назначен" : record.nextAppointment)
-                );
-                LoggerUtil.log(patientId, patientName, "УДАЛЕНИЕ ЗАПИСИ", details);
-
-                view.showSuccess("Запись удалена");
-            } catch (SQLException e) {
-                view.showError("Ошибка удаления: " + e.getMessage());
-            }
+            view.showSuccess("Запись удалена");
+        } catch (SQLException e) {
+            view.showError("Ошибка удаления: " + e.getMessage());
         }
     }
 }
