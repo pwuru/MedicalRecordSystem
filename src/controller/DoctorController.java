@@ -1,5 +1,6 @@
 package controller;
 
+import model.User;
 import view.MainWindow;
 import view.DoctorDialog;
 import model.MedicalDB;
@@ -19,7 +20,8 @@ public class DoctorController {
 
     public void loadDoctors() {
         try {
-            List<Doctor> doctors = MedicalDB.getDoctors();
+            User currentUser = view.getCurrentUser();
+            List<Doctor> doctors = MedicalDB.getDoctorsWithFilter(currentUser.getId(), currentUser.getRole());
             DefaultTableModel model = view.getDoctorsModel();
             model.setRowCount(0);
             for (Doctor d : doctors) {

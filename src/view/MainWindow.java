@@ -266,9 +266,7 @@ public class MainWindow extends JFrame {
         buttonPanel.add(logBtn);
         panel.add(buttonPanel, BorderLayout.SOUTH);
 
-        SwingUtilities.invokeLater(() -> {
-            protocolsRadio.doClick();
-        });
+        SwingUtilities.invokeLater(protocolsRadio::doClick);
 
         return panel;
     }
