@@ -117,8 +117,8 @@ public class ExaminationProtocolDialog extends JDialog {
         }
         if (!recordDateField.getText().trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
             JOptionPane.showMessageDialog(this,
-                    "Дата рождения должна быть в формате ГГГГ-ММ-ДД (например, 1985-05-15)",
-                    "Ошибка", JOptionPane.ERROR_MESSAGE);
+                    "Дата приема должна быть в формате ГГГГ-ММ-ДД","Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
             return false;
         }
         if (complaintsArea.getText().trim().isEmpty()) {
@@ -134,8 +134,8 @@ public class ExaminationProtocolDialog extends JDialog {
         String nextDate = nextAppointmentField.getText().trim();
         if (!nextDate.isEmpty() && !nextDate.matches("\\d{4}-\\d{2}-\\d{2}")) {
             JOptionPane.showMessageDialog(this,
-                    "Дата рождения должна быть в формате ГГГГ-ММ-ДД (например, 1985-05-15)",
-                    "Ошибка", JOptionPane.ERROR_MESSAGE);
+                    "Дата следующего приема должна быть в формате ГГГГ-ММ-ДД","Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
             return false;
         }
         return true;

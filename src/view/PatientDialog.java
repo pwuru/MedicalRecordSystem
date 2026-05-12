@@ -74,21 +74,37 @@ public class PatientDialog extends JDialog {
                     JOptionPane.ERROR_MESSAGE);
             return false;
         }
-
         if (birthDateField.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, "Введите дату рождения", "Ошибка",
                     JOptionPane.ERROR_MESSAGE);
             return false;
         }
-
-        String birthDate = birthDateField.getText().trim();
-        if (!birthDate.matches("\\d{4}-\\d{2}-\\d{2}")) {
+        if (!birthDateField.getText().trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
             JOptionPane.showMessageDialog(this,
-                    "Дата рождения должна быть в формате ГГГГ-ММ-ДД (например, 1985-05-15)",
-                    "Ошибка", JOptionPane.ERROR_MESSAGE);
+                    "Дата рождения должна быть в формате ГГГГ-ММ-ДД","Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
             return false;
         }
-
+        if (phoneField.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Введите телефон", "Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        if (addressField.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Введите адрес", "Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        if (snilsField.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Введите СНИЛС", "Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        if (!snilsField.getText().trim().matches("\\d{3}-\\d{3}-\\d{3} \\d{2}")) {
+            JOptionPane.showMessageDialog(this, "Формат СНИЛС: XXX-XXX-XXX XX", "Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
         return true;
     }
 

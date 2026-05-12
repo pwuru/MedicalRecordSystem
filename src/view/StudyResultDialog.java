@@ -144,8 +144,8 @@ public class StudyResultDialog extends JDialog {
         }
         if (!resultDateField.getText().trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
             JOptionPane.showMessageDialog(this,
-                    "Дата рождения должна быть в формате ГГГГ-ММ-ДД (например, 1985-05-15)",
-                    "Ошибка", JOptionPane.ERROR_MESSAGE);
+                    "Дата выполнения должна быть в формате ГГГГ-ММ-ДД","Ошибка",
+                    JOptionPane.ERROR_MESSAGE);
             return false;
         }
         return true;

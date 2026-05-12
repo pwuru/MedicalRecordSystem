@@ -142,7 +142,7 @@ public class MedicalRecordController {
         }
     }
 
-    private boolean isOwnRecord(int doctorId) {
+    private boolean isNotOwnRecord(int doctorId) {
         User currentUser = view.getCurrentUser();
 
         if (currentUser.getRole().equals("ADMIN")) {
@@ -180,7 +180,7 @@ public class MedicalRecordController {
             if (data != null) {
                 int doctorId = (int) data[0];
 
-                if (isOwnRecord(doctorId)) {
+                if (isNotOwnRecord(doctorId)) {
                     view.showError("Вы можете создавать записи только от своего имени");
                     return;
                 }
@@ -277,7 +277,7 @@ public class MedicalRecordController {
                 return;
             }
 
-            if (isOwnRecord(protocol.getDoctorId())) {
+            if (isNotOwnRecord(protocol.getDoctorId())) {
                 view.showError("Вы можете удалять только свои записи");
                 return;
             }
@@ -318,7 +318,7 @@ public class MedicalRecordController {
             if (data != null) {
                 int doctorId = (int) data[0];
 
-                if (isOwnRecord(doctorId)) {
+                if (isNotOwnRecord(doctorId)) {
                     view.showError("Вы можете добавлять результаты исследования только от своего имени");
                     return;
                 }
@@ -336,7 +336,7 @@ public class MedicalRecordController {
 
                 String patientName = MedicalDB.getPatientName(patientId);
                 String doctorName = MedicalDB.getDoctorName(doctorId);
-                String recordDateStr = (recordDate == null || recordDate.isEmpty()) ? "Не указана" : resultDate;
+                String recordDateStr = (recordDate == null || recordDate.isEmpty()) ? "Не указана" : recordDate;
                 String details = String.format(
                         "Врач: %s\n  Дата назначения: %s\n  Вид: %s\n  Результат: %s\n  Дата выполнения: %s",
                         doctorName, recordDateStr, studyType, result, resultDate
@@ -421,7 +421,7 @@ public class MedicalRecordController {
                 return;
             }
 
-            if (isOwnRecord(study.getDoctorId())) {
+            if (isNotOwnRecord(study.getDoctorId())) {
                 view.showError("Вы можете удалять только свои результаты исследований");
                 return;
             }
